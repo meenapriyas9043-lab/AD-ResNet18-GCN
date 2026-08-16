@@ -1,0 +1,83 @@
+# =============================================================================
+# Central configuration — single source of truth for every hyperparameter.
+# Reviewer 3, Comment 7 flagged inconsistent epoch counts (300 vs 1000) and
+# malformed accuracy strings ("0.96%" vs "96%") scattered across the
+# manuscript. Fixing this at the code level means every script, table, and
+# figure is generated from THIS file, so numbers can never drift again.
+# =============================================================================
+
+seed: 42
+
+data:
+  root_dir: "data/ADNI"          # expects data/ADNI/<class_name>/<subject_id>_<scan_id>.png
+  classes: ["NonDemented", "VeryMildDemented", "MildDemented", "ModerateDemented"]
+  image_size: [128, 128]
+  channels: 3
+  # Subject-wise split (Reviewer 3 Comment 3 / Reviewer 2): no subject's scans
+  # may appear in both a training fold and its corresponding test fold.
+  n_folds: 5
+  n_repeats: 3
+  test_ratio: 0.20               # used only for the single held-out sanity split in run_all.py
+
+preprocessing:
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+  augmentation:
+    rotation_degrees: 15
+    horizontal_flip_p: 0.5
+    color_jitter_brightness: 0.15
+    color_jitter_contrast: 0.15
+  imbalance:
+    # Order of operations matters (Reviewer 3 Comment 6). This is the ONLY
+    # order used anywhere in this codebase:
+    #   1. subject-wise split -> 2. augmentation (train only) ->
+    #   3. SMOTE on ResNet18 embeddings (train only) -> 4. class-weighted loss
+    strategy: "smote_plus_class_weights"
+    smote_k_neighbors: 5
+
+backbone:
+  name: "resnet18"
+  pretrained: true
+  feature_dim: 512
+
+graph:
+  # Reviewer 3 Comment 2: nodes are unambiguously defined here and enforced
+  # in code (see src/graph_utils.py::build_knn_graph docstring).
+  node_definition: "each MRI image (one scan) is a single graph node"
+  construction: "k-nearest-neighbor on ResNet18 embeddings, cosine similarity"
+  k_neighbors: 5
+  self_loops: true
+  normalization: "symmetric (D^-1/2 A D^-1/2)"
+  # Reviewer 3 Comment 3: the graph is rebuilt from scratch inside every
+  # training fold using only that fold's data (see graph_utils.build_knn_graph
+  # and the fold loop in train.py). A single "global" graph spanning the
+  # whole dataset is never constructed anywhere in this repository.
+  scope: "per-fold (train-only for fitting; test nodes attached only at inference time)"
+
+gcn:
+  n_layers: 2
+  hidden_dim: 256
+  dropout: 0.3
+  activation: "relu"
+
+training:
+  epochs: 300                    # fixed value used by ALL models for fair comparison
+  batch_size: 32
+  optimizer: "adam"
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  early_stopping_patience: 30
+
+evaluation:
+  metrics: ["accuracy", "precision", "recall", "f1", "sensitivity", "specificity",
+            "macro_avg", "micro_avg", "roc_auc"]
+  bootstrap_iterations: 2000     # for 95% confidence intervals
+  paired_test: "wilcoxon"        # also reports paired t-test as a cross-check
+
+models_compared:
+  - "googlenet"
+  - "alexnet"
+  - "densenet121"
+  - "efficientnet_b0"
+  - "resnet18_standalone"        # ablation: backbone WITHOUT the GCN head
+  - "hybrid_resnet18_gcn"        # proposed model

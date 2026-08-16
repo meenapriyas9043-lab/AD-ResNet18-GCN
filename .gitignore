@@ -1,0 +1,25 @@
+# Data & large artifacts — never commit raw MRI data or checkpoints
+data/
+*.pth
+*.pt
+*.ckpt
+
+# Generated outputs (regenerate with scripts, keep the repo lightweight)
+results/
+figures/
+outputs/
+*.png
+*.jpg
+!docs/assets/**
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
