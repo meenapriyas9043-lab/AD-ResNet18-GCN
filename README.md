@@ -31,7 +31,6 @@ AD-ResNet18-GCN/
 ├── README.md                 # this file
 ├── config.yaml                # single source of truth for every hyperparameter
 ├── requirements.txt
-├── CODE_AVAILABILITY.md       # how to get a Zenodo DOI once code stabilizes (editor requirement)
 ├── .gitignore
 ├── src/                       # all code — see per-file docstrings for reviewer-comment mapping
 │   ├── utils.py                    # config loading, seeding, device
